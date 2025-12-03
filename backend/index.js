@@ -19,14 +19,8 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-// Создаём JWT-токен для ребёнка
-function signChildToken(child) {
-  return jwt.sign(
-    { child_id: child.id },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES || "7d" }
-  );
-}
+import { signChildToken, generatePublicId } from "./utils/auth.js";
+
 
 // Middleware: проверяем токен в каждом защищённом запросе
 import { authMiddleware } from "./middleware/auth.js";
@@ -104,10 +98,7 @@ const MULTIPLICATION_PROMPT = `
   -------------------------------
 */
 
-function generatePublicId(dbId) {
-  // Простой вариант в стиле ВК: "id123"
-  return "id" + String(dbId);
-}
+
 
 /*
   -------------------------------
