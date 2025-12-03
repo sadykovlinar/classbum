@@ -1,0 +1,34 @@
+# --- Node.js ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+
+# --- Environment secrets ---
+.env
+.env.*
+backend/.env
+frontend/.env
+
+# --- System files ---
+.DS_Store
+Thumbs.db
+
+# --- Replit garbage ---
+.replit
+.local/
+generated-icon.png
+
+# --- Logs ---
+logs
+*.log
+logs/*.log
+
+# --- OS cache files ---
+*.swp
+*.swo
+
+# --- Webflow internal files ---
+webflow.json
