@@ -1,0 +1,241 @@
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // 🔗 твой бекенд
+  const API_BASE = "https://8bc38b36-e4c1-4423-9883-dae5cf8ca105-00-3amdfj7gt49q3.riker.replit.dev";
+
+  const STORAGE_KEY = "classbum_auth";
+
+  // --- helpers localStorage ---
+  function saveAuth(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function loadAuth() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+
+  function clearAuth() {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
+  // --- переключение экранов ---
+  function showLK(child) {
+    const regBlock = document.getElementById("cb-register-block");
+    const loginBlock = document.getElementById("cb-login-block");
+    const lkBlock = document.getElementById("cb-lk-block");
+    if (!regBlock || !loginBlock || !lkBlock) return;
+
+    regBlock.style.display = "none";
+    loginBlock.style.display = "none";
+    lkBlock.style.display = "block";
+
+    document.getElementById("cb-lk-firstname").textContent = child.first_name || "";
+    document.getElementById("cb-lk-lastname").textContent = child.last_name || "";
+    document.getElementById("cb-lk-login").textContent = child.login || "";
+    document.getElementById("cb-lk-publicid").textContent = child.public_id || "";
+    document.getElementById("cb-lk-class").textContent = child.class ?? "-";
+  }
+
+  function showAuth() {
+    const regBlock = document.getElementById("cb-register-block");
+    const loginBlock = document.getElementById("cb-login-block");
+    const lkBlock = document.getElementById("cb-lk-block");
+    if (!regBlock || !loginBlock || !lkBlock) return;
+
+    regBlock.style.display = "block";
+    loginBlock.style.display = "block";
+    lkBlock.style.display = "none";
+  }
+
+  // --- универсальный вызов API ---
+  async function api(url, method = "GET", body = null, withAuth = false) {
+    const headers = { "Content-Type": "application/json" };
+
+    if (withAuth) {
+      const saved = loadAuth();
+      if (saved?.token) {
+        headers["Authorization"] = "Bearer " + saved.token;
+      }
+    }
+
+    const res = await fetch(API_BASE + url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : null,
+    });
+
+    return res.json();
+  }
+
+  // --- отрисовка сессий в ЛК ---
+  function renderSessions(sessions) {
+    const container = document.getElementById("cb-lk-sessions");
+    if (!container) {
+      console.warn("Нет блока #cb-lk-sessions — статистика не покажется");
+      return;
+    }
+
+    if (!sessions || sessions.length === 0) {
+      container.textContent = "Пока нет решённых задач — переходи к тренажёру!";
+      return;
+    }
+
+    const last = sessions[0];
+
+    let tasksArr = [];
+    if (Array.isArray(last.tasks)) {
+      tasksArr = last.tasks;
+    } else if (typeof last.tasks === "string") {
+      try { tasksArr = JSON.parse(last.tasks); } catch (e) {}
+    }
+
+    const totalTasks = tasksArr.length || 0;
+    const minutes = last.total_time_ms ? Math.round(last.total_time_ms / 60000) : 0;
+
+    container.innerHTML = `
+      <div><strong>Всего сессий:</strong> ${sessions.length}</div>
+      <div><strong>Последняя сессия:</strong> ${new Date(last.created_at).toLocaleString()}</div>
+      <div><strong>Режим:</strong> ${last.mode || "—"}</div>
+      <div><strong>Задач в последней сессии:</strong> ${totalTasks}</div>
+      <div><strong>Ошибок:</strong> ${last.total_wrong ?? 0}</div>
+      <div><strong>Подсказок:</strong> ${last.total_hints ?? 0}</div>
+      <div><strong>Время:</strong> ${minutes} мин.</div>
+    `;
+  }
+
+  async function loadMySessions() {
+    try {
+      const data = await api("/api/children/my-sessions", "GET", null, true);
+      if (!data.ok) {
+        console.warn("Не удалось загрузить сессии:", data.error);
+        return;
+      }
+      renderSessions(data.sessions || []);
+    } catch (e) {
+      console.error("loadMySessions error:", e);
+    }
+  }
+
+  // --- элементы ---
+  const btnRegister = document.getElementById("cb-register-btn");
+  const btnLogin = document.getElementById("cb-login-btn");
+  const btnLogout = document.getElementById("cb-logout-btn");
+  const regMsg = document.getElementById("cb-reg-message");
+  const loginMsg = document.getElementById("cb-login-message");
+  const sessionsBlock = document.getElementById("cb-lk-sessions");
+
+  if (!btnRegister || !btnLogin || !btnLogout) {
+    console.error("Не найдены элементы кабинета (проверь id)");
+    return;
+  }
+
+  // --- регистрация ---
+  btnRegister.addEventListener("click", async () => {
+    const login = document.getElementById("cb-reg-login").value.trim();
+    const password = document.getElementById("cb-reg-password").value.trim();
+    const first_name = document.getElementById("cb-reg-firstname").value.trim();
+    const last_name = document.getElementById("cb-reg-lastname").value.trim();
+    const schoolClass = document.getElementById("cb-reg-class").value.trim();
+
+    regMsg.textContent = "";
+
+    if (!login || !password || !first_name || !last_name) {
+      regMsg.textContent = "Заполните логин, пароль, имя и фамилию";
+      return;
+    }
+
+    try {
+      const data = await api("/api/children/register", "POST", {
+        login,
+        password,
+        first_name,
+        last_name,
+        class: schoolClass,
+      });
+
+      if (!data.ok) {
+        if (data.error === "login_taken") {
+          regMsg.textContent = "Такой логин уже занят";
+        } else if (data.error === "fill_required_fields") {
+          regMsg.textContent = "Заполните все обязательные поля";
+        } else {
+          regMsg.textContent = "Ошибка регистрации";
+        }
+        return;
+      }
+
+      saveAuth({ token: data.token, child: data.child });
+      showLK(data.child);
+      // ⬇ загружаем статистику для нового ребёнка (пока пусто, но логика одна)
+      loadMySessions();
+    } catch (e) {
+      console.error(e);
+      regMsg.textContent = "Ошибка сети";
+    }
+  });
+
+  // --- вход ---
+  btnLogin.addEventListener("click", async () => {
+    const login = document.getElementById("cb-login-login").value.trim();
+    const password = document.getElementById("cb-login-password").value.trim();
+
+    loginMsg.textContent = "";
+
+    if (!login || !password) {
+      loginMsg.textContent = "Введите логин и пароль";
+      return;
+    }
+
+    try {
+      const data = await api("/api/children/login", "POST", { login, password });
+
+      if (!data.ok) {
+        if (data.error === "user_not_found" || data.error === "wrong_password") {
+          loginMsg.textContent = "Неверный логин или пароль";
+        } else {
+          loginMsg.textContent = "Ошибка входа";
+        }
+        return;
+      }
+
+      saveAuth({ token: data.token, child: data.child });
+      showLK(data.child);
+      loadMySessions();
+    } catch (e) {
+      console.error(e);
+      loginMsg.textContent = "Ошибка сети";
+    }
+  });
+
+  // --- выход ---
+  btnLogout.addEventListener("click", () => {
+    clearAuth();
+    if (sessionsBlock) sessionsBlock.textContent = "";
+    showAuth();
+  });
+
+  // --- авто-вход ---
+  (async () => {
+    const saved = loadAuth();
+    if (!saved?.token) return;
+
+    try {
+      const me = await api("/api/children/me", "GET", null, true);
+      if (me.ok) {
+        saveAuth({ token: saved.token, child: me.child });
+        showLK(me.child);
+        loadMySessions();
+      } else {
+        clearAuth();
+        showAuth();
+      }
+    } catch (e) {
+      console.error(e);
+      clearAuth();
+      showAuth();
+    }
+  })();
+});
+</script>
