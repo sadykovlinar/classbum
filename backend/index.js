@@ -29,23 +29,8 @@ function signChildToken(child) {
 }
 
 // Middleware: проверяем токен в каждом защищённом запросе
-function authMiddleware(req, res, next) {
-  const auth = req.headers.authorization || "";
-  const [, token] = auth.split(" "); // "Bearer xxx"
+import { authMiddleware } from "./middleware/auth.js";
 
-  if (!token) {
-    return res.status(401).json({ ok: false, error: "no_token" });
-  }
-
-  try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    req.childId = payload.child_id;
-    next();
-  } catch (e) {
-    console.error("JWT verify error:", e);
-    return res.status(401).json({ ok: false, error: "invalid_token" });
-  }
-}
 
 // Проверяем, что база доступна (вывод в логи Replit)
 (async () => {
