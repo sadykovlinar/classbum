@@ -1,4 +1,5 @@
 // backend/routes/children.js
+// LEGACY: авторизация/кабинет ребёнка (сохраняется временно для совместимости).
 import express from "express";
 import bcrypt from "bcryptjs";
 

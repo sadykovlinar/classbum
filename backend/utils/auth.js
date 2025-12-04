@@ -9,6 +9,14 @@ export function signChildToken(child) {
   );
 }
 
+export function signParentToken(parent) {
+  return jwt.sign(
+    { parent_id: parent.id, role: "parent" },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES || "7d" }
+  );
+}
+
 // Простой public_id типа "id123"
 export function generatePublicId(dbId) {
   return "id" + String(dbId);

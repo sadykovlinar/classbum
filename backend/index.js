@@ -4,6 +4,7 @@ import cors from "cors";
 
 import { pool } from "./db.js";
 import childrenRouter from "./routes/children.js";
+import parentsRouter from "./routes/parents.js";
 import tasksRouter from "./routes/tasks.js";
 
 const app = express();
@@ -11,7 +12,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Подключение роутов для /api/children/...
+// Подключение роутов для /auth (родительская авторизация)
+app.use("/auth", parentsRouter);
+
+// Подключение роутов для /api/children/... (legacy дети как аккаунт)
 app.use("/api/children", childrenRouter);
 
 // Подключение роутов для задач (/generate-task, /explain)
